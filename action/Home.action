@@ -1,0 +1,6 @@
+---
+# Define the result
+int8 result
+---
+# Define a feedback message
+geometry_msgs/Pose gripper_pose

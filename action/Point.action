@@ -1,0 +1,8 @@
+# Define the goal
+geometry_msgs/Pose location  # Goal location
+---
+# Define the result
+int8 result
+---
+# Define a feedback message
+geometry_msgs/Pose gripper_pose

@@ -56,16 +56,20 @@ def move_and_grasp(arm, pose_ee, grip_effort):
    #     return
 
     if (arm == yumi.LEFT):
-        yumi.plan_and_move(yumi.group_l,
-                           yumi.create_pose_euler(pose_ee[0], pose_ee[1], pose_ee[2], pose_ee[3], pose_ee[4],
-                                                  pose_ee[5]))
+        if not yumi.traverse_path([pose_ee], arm, 10):
+            return False
+        #yumi.plan_and_move(yumi.group_l,
+        #                   yumi.create_pose_euler(pose_ee[0], pose_ee[1], pose_ee[2], pose_ee[3], pose_ee[4],
+        #                                          pose_ee[5]))
     elif (arm == yumi.RIGHT):
-        yumi.plan_and_move(yumi.group_r,
-                           yumi.create_pose_euler(pose_ee[0], pose_ee[1], pose_ee[2], pose_ee[3], pose_ee[4],
-                                                  pose_ee[5]))
+        if not yumi.traverse_path([pose_ee], arm, 10):
+            return False
 
+    return True
 
-    
+        #yumi.plan_and_move(yumi.group_r,
+        #                   yumi.create_pose_euler(pose_ee[0], pose_ee[1], pose_ee[2], pose_ee[3], pose_ee[4],
+        #                                          pose_ee[5]))
 
 
 
@@ -82,7 +86,7 @@ class PickPlaceServer:
         except:
            rospy.logwarn("Cannot initialize move_it. Quitting.")
            rospy.signal_shutdown("Cannot initialize move_it")
-        
+
         self.server.start()
 
     def preempt_callback(self):
@@ -93,6 +97,11 @@ class PickPlaceServer:
         yumi.reset_pose()
         self.server.set_preempted(self._result)
 
+    def abort(self):
+        yumi.reset_pose()
+        self._result.result = -2
+        self.server.set_aborted(self._result)
+        self.cancelled = True
 
 
     def execute(self, goal):
@@ -110,43 +119,50 @@ class PickPlaceServer:
         grip_effort = -10.0
         open_grippers(yumi.LEFT)
         open_grippers(yumi.RIGHT)
-        pose_ee_t = [goal.location.position.x, goal.location.position.y, 0.3, 0.0,3.14, goal.location.orientation.z]
+        pose_ee_t = [goal.location.position.x, goal.location.position.y, 0.3, 0.0,3.14, 0.0]
 
         if not self.cancelled:
-            move_and_grasp(hand_id, pose_ee_t, grip_effort)
+            if not move_and_grasp(hand_id, pose_ee_t, grip_effort):
+                self.abort()
+                return
+
             rospy.sleep(2.0)
 
 
-        pose_ee_t[2] = 0.2
+        pose_ee_t[2] = 0.20
+        pose_ee_t[5] = goal.location.orientation.z-1.57#-3.14159
 
         if not self.cancelled:
-            move_and_grasp(hand_id, pose_ee_t, grip_effort)
+            if not move_and_grasp(hand_id, pose_ee_t, grip_effort):
+                self.abort()
+                return
             rospy.sleep(2.0)
             close_grippers(hand_id)
 
         pose_ee_t[2] = 0.3
         if not self.cancelled:
-            move_and_grasp(hand_id, pose_ee_t, grip_effort)
+            if not move_and_grasp(hand_id, pose_ee_t, grip_effort):
+                self.abort()
+                return
             rospy.sleep(2.0)
 
-
-        if hand_id == yumi.LEFT:
-            pose_ee = [0.1, 0.4, 0.3, 0.0, -2.0, 0.0]
-            grip_effort = 10.0
-
-            if not self.cancelled:
-                move_and_grasp(hand_id, pose_ee, grip_effort)
+        if not self.cancelled:
+            if hand_id == yumi.LEFT:
+                pose_ee = [0.1, 0.4, 0.3, 0.0, -2.0, 0.0]
+                grip_effort = 10.0
+                if not move_and_grasp(hand_id, pose_ee, grip_effort):
+                    self.abort()
+                    return
                 rospy.sleep(2.0)
                 open_grippers(hand_id)
                 #rospy.sleep(2.0)
                 #pose_ee = [0.1, 0.4, 0.3, 0.0, 3.14, 0.0]
                 #move_and_grasp(hand_id, pose_ee, grip_effort)
-
-
-        else:
-            pose_ee = [0.1, -0.4, 0.3, 0.0, -2.0, 0.0]
-            if not self.cancelled:
-                move_and_grasp(hand_id, pose_ee, grip_effort)
+            else:
+                pose_ee = [0.1, -0.4, 0.3, 0.0, -2.0, 0.0]
+                if not move_and_grasp(hand_id, pose_ee, grip_effort):
+                    self.abort()
+                    return
                 rospy.sleep(2.0)
                 open_grippers(hand_id)
                 #rospy.sleep(2.0)
@@ -154,7 +170,7 @@ class PickPlaceServer:
                 #move_and_grasp(hand_id, pose_ee, grip_effort)
         #Reset YuMi joints to "home" position
         yumi.reset_pose()
-    
+
         if not self.cancelled:
             self._result.result = 0
             self.server.set_succeeded(self._result)

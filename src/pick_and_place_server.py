@@ -130,7 +130,7 @@ class PickPlaceServer:
 
 
         pose_ee_t[2] = 0.20
-        pose_ee_t[5] = goal.location.orientation.z-1.57#-3.14159
+        pose_ee_t[5] = goal.location.orientation.z#-3.14159
 
         if not self.cancelled:
             if not move_and_grasp(hand_id, pose_ee_t, grip_effort):
@@ -139,7 +139,7 @@ class PickPlaceServer:
             rospy.sleep(2.0)
             close_grippers(hand_id)
 
-        pose_ee_t[2] = 0.3
+        pose_ee_t[2] = 0.4
         if not self.cancelled:
             if not move_and_grasp(hand_id, pose_ee_t, grip_effort):
                 self.abort()
